@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from app.lessons import LESSONS
+from app.curriculum import CURRICULUM
 from app.database import get_completed_lessons_count
 
 
@@ -11,7 +11,7 @@ router = Router()
 
 async def get_progress_text(telegram_id: int) -> str:
     completed = await get_completed_lessons_count(telegram_id)
-    total = len(LESSONS)
+    total = len(CURRICULUM)
 
     percent = round((completed / total) * 100) if total else 0
 

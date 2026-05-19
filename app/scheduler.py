@@ -2,31 +2,39 @@ from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.database import get_all_users
-from app.lessons import LESSONS
 from app.keyboards import lesson_keyboard
+from app.services.lesson_service import get_next_lesson_for_user
 
 
 def format_lesson(lesson: dict) -> str:
     return (
-        f"📚 <b>{lesson['title']}</b>\n"
-        f"Уровень: {lesson['level']}\n\n"
-        f"{lesson['text']}\n\n"
-        f"📝 <b>{lesson['task']}</b>"
+        f"📚 <b>День {lesson['day']}</b>\n"
+        f"🧩 <b>Модуль:</b> {lesson['module']}\n"
+        f"🎯 <b>Тема:</b> {lesson['title']}\n\n"
+        f"📖 <b>Теория:</b>\n{lesson['theory']}\n\n"
+        f"💻 <b>Пример кода:</b>\n"
+        f"<pre><code>{lesson['code']}</code></pre>\n\n"
+        f"📝 <b>Задание:</b>\n{lesson['task']}"
     )
-
-
-def get_daily_lesson():
-    # Пока MVP: первый урок.
-    # Следующим шагом сделаем выдачу следующего непройденного урока.
-    return LESSONS[0]
 
 
 async def send_daily_lessons(bot: Bot):
     users = await get_all_users()
-    lesson = get_daily_lesson()
 
     for telegram_id in users:
         try:
+            lesson = await get_next_lesson_for_user(telegram_id)
+
+            if not lesson:
+                await bot.send_message(
+                    chat_id=telegram_id,
+                    text=(
+                        "🎉 Ты прошёл все доступные уроки.\n\n"
+                        "Когда появятся новые материалы, я продолжу обучение."
+                    )
+                )
+                continue
+
             await bot.send_message(
                 chat_id=telegram_id,
                 text=format_lesson(lesson),

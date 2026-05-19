@@ -6,8 +6,6 @@ DB_PATH = "study_bot.db"
 
 
 async def init_db():
-
-
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
@@ -29,32 +27,6 @@ async def init_db():
                 created_at TEXT NOT NULL
             )
         """)
-
-        async def save_user_question(
-                telegram_id: int,
-                lesson_id: int | None,
-                question: str,
-                answer: str,
-        ):
-            async with aiosqlite.connect(DB_PATH) as db:
-                await db.execute("""
-                    INSERT INTO user_questions (
-                        telegram_id,
-                        lesson_id,
-                        question,
-                        answer,
-                        created_at
-                    )
-                    VALUES (?, ?, ?, ?, ?)
-                """, (
-                    telegram_id,
-                    lesson_id,
-                    question,
-                    answer,
-                    datetime.utcnow().isoformat()
-                ))
-
-                await db.commit()
 
         await db.execute("""
             CREATE TABLE IF NOT EXISTS user_lessons (
@@ -147,3 +119,28 @@ async def get_user_lesson_status(telegram_id: int, lesson_id: int):
     return row[0] if row else None
 
 
+async def save_user_question(
+    telegram_id: int,
+    lesson_id: int | None,
+    question: str,
+    answer: str,
+):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO user_questions (
+                telegram_id,
+                lesson_id,
+                question,
+                answer,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            telegram_id,
+            lesson_id,
+            question,
+            answer,
+            datetime.utcnow().isoformat()
+        ))
+
+        await db.commit()

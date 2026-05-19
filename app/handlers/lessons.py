@@ -2,40 +2,36 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from app.lessons import LESSONS
 from app.keyboards import lesson_keyboard, quiz_keyboard
 from app.database import mark_lesson
+from app.services.lesson_service import get_lesson_by_id, get_next_lesson_for_user
 
 
 router = Router()
 
 
-def get_lesson_by_id(lesson_id: int):
-    for lesson in LESSONS:
-        if lesson["id"] == lesson_id:
-            return lesson
-
-    return None
-
-
-def get_daily_lesson():
-    # MVP-логика: пока всегда первый урок.
-    # Потом заменим на выбор следующего непройденного урока.
-    return LESSONS[0]
-
-
 def format_lesson(lesson: dict) -> str:
     return (
-        f"📚 <b>{lesson['title']}</b>\n"
-        f"Уровень: {lesson['level']}\n\n"
-        f"{lesson['text']}\n\n"
-        f"📝 <b>{lesson['task']}</b>"
+        f"📚 <b>День {lesson['day']}</b>\n"
+        f"🧩 <b>Модуль:</b> {lesson['module']}\n"
+        f"🎯 <b>Тема:</b> {lesson['title']}\n\n"
+        f"📖 <b>Теория:</b>\n{lesson['theory']}\n\n"
+        f"💻 <b>Пример кода:</b>\n"
+        f"<pre><code>{lesson['code']}</code></pre>\n\n"
+        f"📝 <b>Задание:</b>\n{lesson['task']}"
     )
 
 
 @router.message(Command("lesson"))
 async def lesson_command(message: Message):
-    lesson = get_daily_lesson()
+    lesson = await get_next_lesson_for_user(message.from_user.id)
+
+    if not lesson:
+        await message.answer(
+            "🎉 Ты прошёл всю программу обучения!\n\n"
+            "Теперь можно переходить к финальному full-stack проекту."
+        )
+        return
 
     await message.answer(
         format_lesson(lesson),
@@ -56,9 +52,19 @@ async def lesson_completed_handler(callback: CallbackQuery):
 
     await callback.answer("Урок отмечен как изученный ✅")
 
+    next_lesson = await get_next_lesson_for_user(callback.from_user.id)
+
+    if not next_lesson:
+        await callback.message.answer(
+            "🎉 Отлично! Ты прошёл все доступные уроки.\n\n"
+            "Когда добавим новые уроки — бот продолжит обучение."
+        )
+        return
+
     await callback.message.answer(
-        "Отлично. Материал закреплён.\n\n"
-        "Завтра я пришлю следующую тему."
+        "Отлично. Материал закреплён ✅\n\n"
+        "Следующий урок будет доступен по команде /lesson "
+        "или придёт автоматически по расписанию."
     )
 
 
@@ -88,7 +94,15 @@ async def lesson_quiz_handler(callback: CallbackQuery):
         await callback.answer("Урок не найден")
         return
 
-    quiz = lesson["quiz"]
+    quiz = lesson.get("quiz")
+
+    if not quiz:
+        await callback.answer("Для этого урока пока нет теста")
+        await callback.message.answer(
+            "Для этого урока пока нет мини-теста. "
+            "Можешь закрепить тему через задание или задать вопрос AI-наставнику."
+        )
+        return
 
     await callback.message.answer(
         f"🧠 <b>Мини-тест</b>\n\n{quiz['question']}",
@@ -112,13 +126,24 @@ async def quiz_answer_handler(callback: CallbackQuery):
         await callback.answer("Урок не найден")
         return
 
-    correct_index = lesson["quiz"]["correct"]
+    quiz = lesson.get("quiz")
+
+    if not quiz:
+        await callback.answer("Тест не найден")
+        return
+
+    correct_index = quiz["correct"]
 
     if answer_index == correct_index:
         await callback.answer("Правильно ✅")
         await callback.message.answer("Верно. Тема понята хорошо.")
     else:
+        correct_answer = quiz["options"][correct_index]
+
         await callback.answer("Неправильно ❌")
         await callback.message.answer(
-            "Ответ неверный. Лучше перечитать объяснение и попробовать ещё раз."
+            "Ответ неверный.\n\n"
+            f"Правильный ответ: <b>{correct_answer}</b>\n\n"
+            "Лучше перечитать объяснение и попробовать применить тему в коде.",
+            parse_mode="HTML"
         )

@@ -6,3 +6,27 @@ env/
 # Файлы с секретами и переменными окружения
 .env
 .env.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite database
+study_bot.db
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE / editors
+.idea/
+.vscode/
+
+# Tests / cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
